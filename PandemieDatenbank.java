@@ -91,7 +91,8 @@
      */
     public void add(String datum, int erkranktePersonen) throws InvalidParameterException
     {
-
+       try
+       {
             Date date = new SimpleDateFormat("dd.MM.yyyy").parse(datum); // wirft eine exception wenn datum falsch formatiert
             if ( this.enthaeltListeDatum( datum ) )
             {
@@ -109,6 +110,9 @@
 
             this.list.add( String.format(Locale.ENGLISH, "%s;%d;%.2f\n", this.datum, this.erkranktePersonen, this.prozent ) ); // schreibe in liste
 
+        } catch (Exception e) {
+            throw new InvalidParameterException();
+        }
     }
 
     /** Datenbankinhalt wird in einen String gespeichert
