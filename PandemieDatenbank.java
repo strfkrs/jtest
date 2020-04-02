@@ -9,151 +9,110 @@
     public class PandemieDatenbank
     {
         /** Datum des Eintrags */
-        private String datum;
+        //private String datum;
         /** Anzahl der erkrankten Personen */
-        private int erkranktePersonen;
+        //private int erkranktePersonen;
         /** Anzahl der erkrankten Personen */
-        private int erkranktePersonenVortag = 0;
+        //private int erkranktePersonenVortag = 0;
         /**Prozentanzahl zu Vortag*/
-        private float prozent;
+        //private float prozent;
 
-        private ArrayList<String> list = new ArrayList<String>();
+         static public class Datensatz implements Serializable
+         {
+            private static final long serialVersionUID = 1234L; // beim de/serialisieren hilft das java versionen zu unterscheiden
+            public Date datum; // datum des datensatzes
+            public int erkranktePersonen; // summe am tag des datensatzes
+            public static int erkranktePersonenVortag; // static!
 
+            @Override
+            public String toString()
+            {
+               return String.format( "\"%s\";%d;%.2f",
+                                     new SimpleDateFormat( "dd.MM.yyyy" ).format( this.datum ),
+                                     this.erkranktePersonen,
+                                     ( Datensatz.erkranktePersonenVortag > 0 )
+                                       ? ( ( (float) this.erkranktePersonen / (float) Datensatz.erkranktePersonenVortag ) * 100 ) -100
+                                       : 0
+                                   );
+            }
+         }
 
-        /**
-         * Konstructor für eine leere Datenbank
-         */
+        private ArrayList<Datensatz> list = new ArrayList<Datensatz>();
+
         public PandemieDatenbank(){}
 
-         // NEU; überprüft jeden string einer liste ob in ihm der teilstring date vorkommt
-        private boolean enthaeltListeDatum( String datum )
-        {
-
-           for ( String s : this.list )
-           {
-               // s = "16.3.2020";1018;18.38
-               // datum = 16.3.2020
-                if ( s.contains( datum ) )
-                {
-                    return true;
-                }
-           }
-            return false;
-        }
-
-        /** läd die Datenbank von einem File */
         public void loadFromFile(String filename)
         {
-            // überschreibe alte liste mit leerer neuer
-            this.list = new ArrayList<String>();
+            this.list.clear();
 
-            try
+            try( FileInputStream fs = new FileInputStream(filename);
+                 ObjectInputStream is = new ObjectInputStream( fs ); )
             {
-                BufferedReader br = new BufferedReader(new FileReader (filename));
-
-                String line = br.readLine();
-
-                while ( line != null )
-                {
-                     String[] splitted = line.split(";");
-                     /*        "16.3.2020";1018;18.38              */
-                     /*         ->                                 */
-                     /*   "16.3.2020"         1018      18.38      */
-
-
-                     this.add( token[0].replace("\"",""), Integer.parseInt( token[1] )); // nutze eigenen member damit anzahlVortag mititeriert wird
-
-                     System.out.println(line);
-                }
-
-                br.close();
+               while( true )
+               {
+                  this.list.add( (Datensatz) is.readObject() );
+               }
+            }
+            catch( EOFException e )
+            {
+               // System.out.println("OK");
+            }
+            catch (ClassNotFoundException e)
+            {
+                System.out.println("FEHLER - fehlerhafte daten" +e);
             }
             catch (IOException e)
             {
-                System.out.println("FEHLER");
+                System.out.println("FEHLER - konnte datei nicht öffnen" + e);
             }
     }
 
-    /** speichert die Datenbank in ein File */
     public void savetoFile(String filename)
     {
-        try
+        try( FileOutputStream fs = new FileOutputStream( filename, false );
+             ObjectOutputStream os = new ObjectOutputStream( fs ); )
         {
-            BufferedWriter bw = new BufferedWriter( new FileWriter(filename, true) );
-
-            for ( String l : this.list )
+            for ( Datensatz datensatz : this.list )
             {
-                bw.write( l );
+               os.writeObject( datensatz );
+               System.out.println( datensatz );
             }
-
-            bw.close();
-        }  catch (IOException e) {
-            System.out.print(e.getMessage());
+        }  catch ( IOException e ) {
+            System.out.print(String.format("%s %s", e.getMessage(), e.getCause() ));
         }
     }
 
-    /**
-     * fügt einen Eintrag in die Datenbank ein
-     * für ein Datum darf es nur einen Eintrag geben
-     * @param datum ... Datum des Eintrags
-     * @param erkranktePersonen ... Anzahl der erkrankten Personen
-     */
     public void add(String datum, int erkranktePersonen) throws InvalidParameterException
     {
        try
        {
-            // variable date wird nicht verwendet
-            // objekt bekommt beim erzeugen schon den formatstring mit dem es später das datum prüfen soll
-            // objekt wirft exception wenns nicht zampasst
-            new SimpleDateFormat("dd.MM.yyy").parse(datum);
+            Datensatz neuerDatensatz = new Datensatz();
 
+            neuerDatensatz.datum = new SimpleDateFormat("dd.MM.yyy").parse( datum ); // objekt wirft exception wenns format beim parsen nicht zampasst
 
-            // wenn datum bereits in liste werfe exception
-            if ( this.enthaeltListeDatum( datum ) )
-            {
-                throw new InvalidParameterException();
-            }
+            this.list.forEach( existierenderEintrag ->
+                     { if ( existierenderEintrag.datum == neuerDatensatz.datum ) throw new InvalidParameterException(); } );
 
-            this.prozent = 0;
-            if ( this.erkranktePersonenVortag != 0 )
-            {
-               this.prozent = ( ( (float) erkranktePersonen / (float) this.erkranktePersonenVortag ) * 100 ) - 100;
-            }
+            neuerDatensatz.erkranktePersonen = erkranktePersonen;
 
-            this.erkranktePersonenVortag = erkranktePersonen;
+            this.list.add( neuerDatensatz );
+            System.out.println( neuerDatensatz );
 
-            this.list.add( String.format(Locale.ENGLISH, "\"%s\";%d;%.2f\n", datum, erkranktePersonen, this.prozent ) );
-
-        } catch (Exception e) {
+        } catch ( Exception e ) {
             throw new InvalidParameterException();
         }
     }
 
-    /** Datenbankinhalt wird in einen String gespeichert
-     * @return der komplette Datenbankinhalt im vorgegeben Format .
-     * Format:
-     * "<Datum>";<anzahl erkrankte Personen>;<Zunahme in % gegenüber dem Vortag>                               // TODO: hier stehen ; im beispiel , --> ; implementiert
-     *
-     * Beispielausgabe:
-     * "15.3.2020",860,0
-     * "16.3.2020",1018,18.38
-     * "17.3.2020",1332,30.85
-     * "18.3.2020",1646,19.07
-     * "19.3.2020",2013,22.29
-     * "20.3.2020",2388,18.62
-     * "21.3.2020",2814,17.84
-     * "22.3.2020",3282,16.63
-     *
-    */
     public String toString() {
 
         // verwende stringbuilder um die einzelnen tage zu verketten und zum schluss einen gesamtstring zurückzugeben
         // ist performanter als händisch mit +=
         StringBuilder builder = new StringBuilder();
 
-        for ( String tag : this.list )
+        for ( Datensatz datensatz : this.list )
         {
-            builder.append( tag );
+            builder.append( datensatz );
+            builder.append( '\n' );
         }
         return builder.toString();
     }
