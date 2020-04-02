@@ -1,13 +1,14 @@
 
     import java.util.ArrayList;
     import java.io.*;
-    import java.security.*;
+    import java.security.InvalidParameterException;
     import java.util.*;
     import java.text.SimpleDateFormat;
-    import java.util.Scanner;
+    import java.lang.StringBuilder;
+
     public class PandemieDatenbank
     {
-            /** Datum des Eintrags */
+        /** Datum des Eintrags */
         private String datum;
         /** Anzahl der erkrankten Personen */
         private int erkranktePersonen;
@@ -24,13 +25,15 @@
          */
         public PandemieDatenbank(){}
 
-
-        private boolean enthaeltListeDatum( String date ) // NEU; überprüft jeden string einer liste ob in ihm der teilstring date vorkommt
+         // NEU; überprüft jeden string einer liste ob in ihm der teilstring date vorkommt
+        private boolean enthaeltListeDatum( String datum )
         {
 
            for ( String s : this.list )
            {
-                if ( s.contains( date ) )
+               // s = "16.3.2020";1018;18.38
+               // datum = 16.3.2020
+                if ( s.contains( datum ) )
                 {
                     return true;
                 }
@@ -41,19 +44,25 @@
         /** läd die Datenbank von einem File */
         public void loadFromFile(String filename)
         {
+            // überschreibe alte liste mit leerer neuer
             this.list = new ArrayList<String>();
-            //this.erkranktePersonenVortag = 0;
 
             try
             {
                 BufferedReader br = new BufferedReader(new FileReader (filename));
 
-                String line;
+                String line = br.readLine();
 
-                while ( ( line = br.readLine() ) != null)
+                while ( line != null )
                 {
-                     String[] token = line.split(";");
+                     String[] splitted = line.split(";");
+                     /*        "16.3.2020";1018;18.38              */
+                     /*         ->                                 */
+                     /*   "16.3.2020"         1018      18.38      */
+
+
                      this.add( token[0].replace("\"",""), Integer.parseInt( token[1] )); // nutze eigenen member damit anzahlVortag mititeriert wird
+
                      System.out.println(line);
                 }
 
@@ -93,7 +102,13 @@
     {
        try
        {
-            Date date = new SimpleDateFormat("dd.MM.yyyy").parse(datum); // wirft eine exception wenn datum falsch formatiert
+            // variable date wird nicht verwendet
+            // objekt bekommt beim erzeugen schon den formatstring mit dem es später das datum prüfen soll
+            // objekt wirft exception wenns nicht zampasst
+            new SimpleDateFormat("dd.MM.yyy").parse(datum);
+
+
+            // wenn datum bereits in liste werfe exception
             if ( this.enthaeltListeDatum( datum ) )
             {
                 throw new InvalidParameterException();
@@ -102,13 +117,12 @@
             this.prozent = 0;
             if ( this.erkranktePersonenVortag != 0 )
             {
-               this.prozent =( ( (float)erkranktePersonen/ (float)this.erkranktePersonenVortag  ) * 100 ) -100;
+               this.prozent = ( ( (float) erkranktePersonen / (float) this.erkranktePersonenVortag ) * 100 ) - 100;
             }
-            this.datum = "\"" + datum + "\"";
-            this.erkranktePersonen = erkranktePersonen;
-            this.erkranktePersonenVortag = erkranktePersonen;                            // schreibe gestern = heute
 
-            this.list.add( String.format(Locale.ENGLISH, "%s;%d;%.2f\n", this.datum, this.erkranktePersonen, this.prozent ) ); // schreibe in liste
+            this.erkranktePersonenVortag = erkranktePersonen;
+
+            this.list.add( String.format(Locale.ENGLISH, "\"%s\";%d;%.2f\n", datum, erkranktePersonen, this.prozent ) );
 
         } catch (Exception e) {
             throw new InvalidParameterException();
@@ -131,15 +145,17 @@
      * "22.3.2020",3282,16.63
      *
     */
-
     public String toString() {
 
-        String s = "";
-        for ( String ds : this.list )
+        // verwende stringbuilder um die einzelnen tage zu verketten und zum schluss einen gesamtstring zurückzugeben
+        // ist performanter als händisch mit +=
+        StringBuilder builder = new StringBuilder();
+
+        for ( String tag : this.list )
         {
-            s += ds;
+            builder.append( tag );
         }
-        return s;
+        return builder.toString();
     }
 
 }
