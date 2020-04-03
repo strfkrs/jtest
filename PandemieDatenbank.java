@@ -27,13 +27,15 @@
             @Override
             public String toString()
             {
-               return String.format( "\"%s\";%d;%.2f",
-                                     new SimpleDateFormat( "dd.MM.yyyy" ).format( this.datum ),
-                                     this.erkranktePersonen,
-                                     ( Datensatz.erkranktePersonenVortag > 0 )
-                                       ? ( ( (float) this.erkranktePersonen / (float) Datensatz.erkranktePersonenVortag ) * 100 ) -100
-                                       : 0
-                                   );
+               String returning = String.format( "\"%s\";%d;%.2f",
+                                                new SimpleDateFormat( "dd.MM.yyyy" ).format( this.datum ),
+                                                this.erkranktePersonen,
+                                                ( Datensatz.erkranktePersonenVortag > 0 )
+                                                  ? ( ( (float) this.erkranktePersonen / (float) Datensatz.erkranktePersonenVortag ) * 100 ) -100
+                                                  : 0
+                                              );
+               Datensatz.erkranktePersonenVortag = this.erkranktePersonen;
+               return returning;
             }
          }
 
